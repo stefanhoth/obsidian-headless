@@ -2,10 +2,18 @@ services:
   ob:
     build: .
     volumes:
-      - ./datadir:/vault
+      - ./ob-vault:/vault
       - ob-config:/config
     stdin_open: true
     tty: true
+
+  sync:
+    build: .
+    volumes:
+      - ./ob-vault:/vault
+      - ob-config:/config
+    command: sync --continuous
+    restart: unless-stopped
 
 volumes:
   ob-config:

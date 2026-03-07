@@ -19,7 +19,7 @@ docker compose build
 Create the directory that will hold your vault data:
 
 ```bash
-mkdir datadir
+mkdir ob-vault
 ```
 
 ## First-time login
@@ -32,11 +32,23 @@ docker compose run --rm ob login
 
 ## Vault setup
 
-Configure which remote vault to sync into `datadir/`:
+Configure which remote vault to sync into `ob-vault/`:
 
 ```bash
 docker compose run --rm ob sync-setup --vault "My Vault"
 ```
+
+For end-to-end encrypted vaults, provide the encryption password. You will be prompted interactively if you omit it:
+
+```bash
+# Interactive prompt (recommended)
+docker compose run --rm ob sync-setup --vault "My Vault"
+
+# Non-interactive (e.g. in a setup script)
+docker compose run --rm ob sync-setup --vault "My Vault" --password "your-e2ee-password"
+```
+
+> **Note:** The password is stored in `ob-config` after setup and does not need to be provided again. The `sync` service restarts automatically without any interactive prompt.
 
 ## Syncing
 
@@ -46,17 +58,36 @@ Run a one-time sync:
 docker compose run --rm ob sync
 ```
 
-Run continuously (watches for changes):
+### Continuous sync with automatic restart
+
+`docker-compose.yml` includes a dedicated `sync` service configured with `restart: unless-stopped`. This means Docker automatically restarts it if the process crashes or the host reboots — no manual intervention needed.
+
+Start it in the background:
 
 ```bash
-docker compose run --rm ob sync --continuous
+docker compose up -d sync
 ```
+
+Check its status and logs:
+
+```bash
+docker compose ps sync
+docker compose logs -f sync
+```
+
+Stop it:
+
+```bash
+docker compose stop sync
+```
+
+The `restart: unless-stopped` policy means the service will **not** restart if you explicitly stop it with `docker compose stop`. It only restarts on unexpected exits or system reboots.
 
 ## Volume layout
 
 | Mount | Container path | Purpose |
 |---|---|---|
-| `./datadir` | `/vault` | Your vault files (notes, attachments) |
+| `./ob-vault` | `/vault` | Your vault files (notes, attachments) |
 | `ob-config` (named volume) | `/config` | CLI credentials and config |
 
 The two mounts are intentionally kept separate — see the [Security considerations](#security-considerations) section below.
@@ -65,17 +96,17 @@ The two mounts are intentionally kept separate — see the [Security considerati
 
 ### Why credentials are stored outside the vault
 
-The `ob-config` volume (mounted at `/config`, which serves as `$HOME` inside the container) holds your Obsidian account credentials. This is deliberately separate from `./datadir`.
+The `ob-config` volume (mounted at `/config`, which serves as `$HOME` inside the container) holds your Obsidian account credentials. This is deliberately separate from `./ob-vault`.
 
-If you mount `./datadir` for another tool — a local AI agent, a backup script, a second device — it will only see your vault files. Your login credentials stay in the Docker-managed volume and are never written into the vault directory.
+If you mount `./ob-vault` for another tool — a local AI agent, a backup script, a second device — it will only see your vault files. Your login credentials stay in the Docker-managed volume and are never written into the vault directory.
 
-### Sharing `datadir` with AI agents
+### Sharing `ob-vault` with AI agents
 
-Mounting `./datadir` for a local agent (e.g. to let it read or edit your notes) is safe from a credentials perspective. However, consider the following:
+Mounting `./ob-vault` for a local agent (e.g. to let it read or edit your notes) is safe from a credentials perspective. However, consider the following:
 
-- **`.obsidian/` contains sync state.** The sync database and settings live in `./datadir/.obsidian/`. An agent that modifies or deletes files in that subdirectory can disrupt syncing. Grant agents read-only access to `./datadir` where possible, or explicitly exclude `.obsidian/` from any agent working directory.
+- **`.obsidian/` contains sync state.** The sync database and settings live in `./ob-vault/.obsidian/`. An agent that modifies or deletes files in that subdirectory can disrupt syncing. Grant agents read-only access to `./ob-vault` where possible, or explicitly exclude `.obsidian/` from any agent working directory.
 - **File deletions are synced.** If an agent deletes files, those deletions will be propagated to your remote vault on the next sync. Consider using `--mode pull-only` (`ob sync-config --mode pull-only`) when running alongside agents that write to the vault, so the container only downloads and never uploads local changes.
-- **Principle of least privilege.** If the agent only needs to read your notes, mount `./datadir` as read-only: add `:ro` to the volume in `docker-compose.yml` for the agent's service.
+- **Principle of least privilege.** If the agent only needs to read your notes, mount `./ob-vault` as read-only: add `:ro` to the volume in `docker-compose.yml` for the agent's service.
 
 ### Resetting credentials
 
