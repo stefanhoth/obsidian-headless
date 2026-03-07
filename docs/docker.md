@@ -108,6 +108,26 @@ Mounting `./ob-vault` for a local agent (e.g. to let it read or edit your notes)
 - **File deletions are synced.** If an agent deletes files, those deletions will be propagated to your remote vault on the next sync. Consider using `--mode pull-only` (`ob sync-config --mode pull-only`) when running alongside agents that write to the vault, so the container only downloads and never uploads local changes.
 - **Principle of least privilege.** If the agent only needs to read your notes, mount `./ob-vault` as read-only: add `:ro` to the volume in `docker-compose.yml` for the agent's service.
 
+### Running as non-root
+
+The container runs as the `node` user (uid 1000) rather than root. This limits what a compromised process could do to the host system.
+
+On **macOS and Windows** with Docker Desktop, bind mounts handle uid mapping automatically — no extra steps needed.
+
+On **Linux**, the `./ob-vault` directory on the host must be readable and writable by uid 1000:
+
+```bash
+sudo chown -R 1000:1000 ./ob-vault
+```
+
+The `ob-config` named volume is initialized with the correct ownership automatically on first run.
+
+### Separate users for `ob` and `sync` (advanced)
+
+Both services currently run as the same `node` user. A stricter setup would use a dedicated read-only user for the `sync` service so it can read credentials from `ob-config` but cannot modify them (e.g. cannot write new login tokens).
+
+The tradeoff: syncing requires write access to `ob-vault` regardless, so this only isolates credential writes — not vault writes. For most setups the single non-root user is sufficient.
+
 ### Resetting credentials
 
 To log out and clear stored credentials:
