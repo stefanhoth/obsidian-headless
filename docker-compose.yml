@@ -1,0 +1,11 @@
+services:
+  ob:
+    build: .
+    volumes:
+      - ./datadir:/vault
+      - ob-config:/config
+    stdin_open: true
+    tty: true
+
+volumes:
+  ob-config:
