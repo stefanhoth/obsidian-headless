@@ -110,14 +110,19 @@ Mounting `./ob-vault` for a local agent (e.g. to let it read or edit your notes)
 
 ### Running as non-root
 
-The container runs as the `node` user (uid 1000) rather than root. This limits what a compromised process could do to the host system.
+The container runs as a dedicated `ob` user (uid/gid 2500) rather than root. The uid 2500 is chosen to avoid collisions with common system users and default uids used by tools such as coding agents (which tend to use round numbers like 1000 or 2000).
+
+Additional hardening applied to both services:
+- `read_only: true` — root filesystem is immutable; all writes go to the mounted volumes or `/tmp`
+- `no-new-privileges` — the process cannot gain additional privileges via setuid/setgid
+- `cap_drop: ALL` — all Linux capabilities are dropped; the CLI does not need any
 
 On **macOS and Windows** with Docker Desktop, bind mounts handle uid mapping automatically — no extra steps needed.
 
-On **Linux**, the `./ob-vault` directory on the host must be readable and writable by uid 1000:
+On **Linux**, the `./ob-vault` directory on the host must be readable and writable by uid 2500:
 
 ```bash
-sudo chown -R 1000:1000 ./ob-vault
+sudo chown -R 2500:2500 ./ob-vault
 ```
 
 The `ob-config` named volume is initialized with the correct ownership automatically on first run.

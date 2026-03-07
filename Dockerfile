@@ -14,11 +14,12 @@ COPY --from=builder /usr/local/bin/ob /usr/local/bin/ob
 
 ENV HOME=/config
 
-# Pre-create mount points owned by the node user so named volumes
-# are initialized with correct permissions on first run.
-RUN mkdir -p /vault /config && chown node:node /vault /config
+# Create a dedicated non-root user and pre-create mount points so
+# named volumes are initialized with correct permissions on first run.
+RUN groupadd -g 2500 ob && useradd -u 2500 -g ob -s /bin/sh -m ob && \
+    mkdir -p /vault /config && chown ob:ob /vault /config
 
-USER node
+USER ob
 
 WORKDIR /vault
 
