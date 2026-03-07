@@ -38,7 +38,7 @@ Configure which remote vault to sync into `ob-vault/`:
 docker compose run --rm ob sync-setup --vault "My Vault"
 ```
 
-For end-to-end encrypted vaults, provide the encryption password. You will be prompted interactively if you omit it:
+For end-to-end encrypted vaults, provide the encryption password:
 
 ```bash
 # Interactive prompt (recommended)
@@ -48,7 +48,8 @@ docker compose run --rm ob sync-setup --vault "My Vault"
 docker compose run --rm ob sync-setup --vault "My Vault" --password "your-e2ee-password"
 ```
 
-> **Note:** The password is stored in `ob-config` after setup and does not need to be provided again. The `sync` service restarts automatically without any interactive prompt.
+> [!NOTE]
+> The password is stored in `ob-config` after setup and does not need to be provided again. The `sync` service restarts automatically without any interactive prompt.
 
 ## Syncing
 
@@ -81,7 +82,8 @@ Stop it:
 docker compose stop sync
 ```
 
-The `restart: unless-stopped` policy means the service will **not** restart if you explicitly stop it with `docker compose stop`. It only restarts on unexpected exits or system reboots.
+> [!TIP]
+> The `restart: unless-stopped` policy means the service will **not** restart if you explicitly stop it with `docker compose stop`. It only restarts on unexpected exits or system reboots.
 
 ## Volume layout
 
@@ -108,9 +110,12 @@ Mounting `./ob-vault` for a local agent (e.g. to let it read or edit your notes)
 - **File deletions are synced.** If an agent deletes files, those deletions will be propagated to your remote vault on the next sync. Consider using `--mode pull-only` (`ob sync-config --mode pull-only`) when running alongside agents that write to the vault, so the container only downloads and never uploads local changes.
 - **Principle of least privilege.** If the agent only needs to read your notes, mount `./ob-vault` as read-only: add `:ro` to the volume in `docker-compose.yml` for the agent's service.
 
+> [!CAUTION]
+> Never grant an agent write access to `ob-vault` while running in `bidirectional` sync mode. Any file the agent deletes or overwrites will be propagated to your remote vault.
+
 ### Running as non-root
 
-The container runs as a dedicated `ob` user (uid/gid 2500) rather than root. The uid 2500 is chosen to avoid collisions with common system users and default uids used by tools such as coding agents (which tend to use round numbers like 1000 or 2000).
+The container runs as a dedicated `ob` user (uid/gid **2500**) rather than root. The value 2500 is chosen to avoid collisions with common system users and default uids used by tools such as coding agents, which tend to use round numbers like 1000 or 2000.
 
 Additional hardening applied to both services:
 - `read_only: true` — root filesystem is immutable; all writes go to the mounted volumes or `/tmp`
@@ -127,9 +132,31 @@ sudo chown -R 2500:2500 ./ob-vault
 
 The `ob-config` named volume is initialized with the correct ownership automatically on first run.
 
+#### Changing the uid/gid
+
+If 2500 clashes with an existing user on your system, change it in **three places**:
+
+1. **`Dockerfile`** — the `groupadd`/`useradd` line:
+   ```dockerfile
+   RUN groupadd -g 2500 ob && useradd -u 2500 -g ob ...
+   ```
+
+2. **`docker-compose.yml`** — the `user:` field on both the `ob` and `sync` services:
+   ```yaml
+   user: "2500:2500"
+   ```
+
+3. **Host directory** (Linux only) — re-chown `./ob-vault` after changing:
+   ```bash
+   sudo chown -R <new-uid>:<new-gid> ./ob-vault
+   ```
+
+> [!IMPORTANT]
+> All three must use the same uid/gid, otherwise the container will fail to read or write its volumes.
+
 ### Separate users for `ob` and `sync` (advanced)
 
-Both services currently run as the same `node` user. A stricter setup would use a dedicated read-only user for the `sync` service so it can read credentials from `ob-config` but cannot modify them (e.g. cannot write new login tokens).
+Both services currently run as the same `ob` user. A stricter setup would use a dedicated read-only user for the `sync` service so it can read credentials from `ob-config` but cannot modify them (e.g. cannot write new login tokens).
 
 The tradeoff: syncing requires write access to `ob-vault` regardless, so this only isolates credential writes — not vault writes. For most setups the single non-root user is sufficient.
 
