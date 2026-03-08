@@ -163,5 +163,8 @@ To log out and clear stored credentials:
 
 ```bash
 docker compose run --rm ob logout
-docker volume rm obsidian-headless_ob-config
+docker compose down -v
 ```
+
+> [!NOTE]
+> `docker compose down -v` removes all volumes for this project, including `ob-config`. The volume name is prefixed with the Docker Compose project name (by default: the directory name), so it varies between setups — `docker compose down -v` always works regardless.
