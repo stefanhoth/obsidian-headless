@@ -10,7 +10,12 @@ RUN npm install -g obsidian-headless
 FROM node:24-slim
 
 COPY --from=builder /usr/local/lib/node_modules /usr/local/lib/node_modules
-COPY --from=builder /usr/local/bin/ob /usr/local/bin/ob
+
+# Recreate the symlink that npm would normally create. COPY dereferences
+# symlinks, so copying /usr/local/bin/ob directly would break Node.js
+# module resolution (modules are resolved relative to the symlink target,
+# not the symlink itself).
+RUN ln -s /usr/local/lib/node_modules/obsidian-headless/cli.js /usr/local/bin/ob
 
 ENV HOME=/config
 
