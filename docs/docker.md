@@ -119,6 +119,23 @@ Mounting `./ob-vault` for a local agent (e.g. to let it read or edit your notes)
 - **File deletions are synced.** If an agent deletes files, those deletions will be propagated to your remote vault on the next sync. Consider using `--mode pull-only` (`ob sync-config --mode pull-only`) when running alongside agents that write to the vault, so the container only downloads and never uploads local changes.
 - **Principle of least privilege.** If the agent only needs to read your notes, mount `./ob-vault` as read-only: add `:ro` to the volume in `docker-compose.yml` for the agent's service.
 
+#### Granting write access to another container
+
+`./ob-vault` is owned by uid/gid 2500. To allow another container's user to write to it, add `group_add` to that service's Compose configuration:
+
+```yaml
+services:
+  my-agent:
+    image: some-agent
+    volumes:
+      - /path/to/ob-vault:/vault
+    group_add:
+      - "2500"
+```
+
+> [!NOTE]
+> Adding the group via `group_add` is necessary even if gid 2500 appears in the container's `/etc/group`. Docker does not load supplementary groups from `/etc/group` automatically — they must be explicitly passed at container start.
+
 ### Running as non-root
 
 The container runs as a dedicated `ob` user (uid/gid **2500**) rather than root. The value 2500 is chosen to avoid collisions with common system users and default uids used by tools such as coding agents, which tend to use round numbers like 1000 or 2000.
