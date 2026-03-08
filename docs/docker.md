@@ -22,6 +22,15 @@ Create the directory that will hold your vault data:
 mkdir ob-vault
 ```
 
+On **Linux**, set the ownership to uid/gid 2500 so the container can write to it:
+
+```bash
+sudo chown 2500:2500 ob-vault
+```
+
+> [!NOTE]
+> All `docker compose` commands are run by your regular login user (who must have Docker access). The container executes internally as uid 2500 — no system user with that uid needs to exist on the host.
+
 ## First-time login
 
 Login interactively. This stores your credentials in a named Docker volume (`ob-config`) that is separate from your vault:
