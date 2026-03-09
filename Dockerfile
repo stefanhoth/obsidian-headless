@@ -17,6 +17,9 @@ COPY --from=builder /usr/local/lib/node_modules /usr/local/lib/node_modules
 # not the symlink itself).
 RUN ln -s /usr/local/lib/node_modules/obsidian-headless/cli.js /usr/local/bin/ob
 
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
 ENV HOME=/config
 
 # Create a dedicated non-root user and pre-create mount points so
@@ -28,4 +31,4 @@ USER ob
 
 WORKDIR /vault
 
-ENTRYPOINT ["ob"]
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
